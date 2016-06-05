@@ -14,7 +14,8 @@ __Note:__ This is in early development, and likely needs further work.
 ```go
 func SetLogger(l LevelledLogger)
 ```
-SetLogger wraps the supplied logger with a logPrefixer to denote golifx logs
+SetLogger wraps the supplied logger with a logPrefixer to denote locally
+generated logs
 
 #### type Client
 
