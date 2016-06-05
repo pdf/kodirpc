@@ -22,29 +22,29 @@ type LevelledLogger interface {
 	Panicf(format string, args ...interface{})
 }
 
-// StubLogger satisfies the Logger interface, and simply does nothing with
+// stubLogger satisfies the Logger interface, and simply does nothing with
 // received messages
-type StubLogger struct{}
+type stubLogger struct{}
 
 // Debugf handles debug level messages
-func (l *StubLogger) Debugf(format string, args ...interface{}) {}
+func (l *stubLogger) Debugf(format string, args ...interface{}) {}
 
 // Infof handles info level messages
-func (l *StubLogger) Infof(format string, args ...interface{}) {}
+func (l *stubLogger) Infof(format string, args ...interface{}) {}
 
 // Warnf handles warn level messages
-func (l *StubLogger) Warnf(format string, args ...interface{}) {}
+func (l *stubLogger) Warnf(format string, args ...interface{}) {}
 
 // Errorf handles error level messages
-func (l *StubLogger) Errorf(format string, args ...interface{}) {}
+func (l *stubLogger) Errorf(format string, args ...interface{}) {}
 
 // Fatalf handles fatal level messages, exits the application
-func (l *StubLogger) Fatalf(format string, args ...interface{}) {
+func (l *stubLogger) Fatalf(format string, args ...interface{}) {
 	os.Exit(1)
 }
 
 // Panicf handles debug level messages, and panics the application
-func (l *StubLogger) Panicf(format string, args ...interface{}) {
+func (l *stubLogger) Panicf(format string, args ...interface{}) {
 	panic(fmt.Sprintf(format, args...))
 }
 
@@ -106,7 +106,7 @@ var (
 )
 
 func init() {
-	SetLogger(&StubLogger{})
+	SetLogger(&stubLogger{})
 }
 
 // SetLogger wraps the supplied logger with a logPrefixer to denote golifx logs
