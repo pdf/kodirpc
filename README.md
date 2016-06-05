@@ -6,6 +6,7 @@ __Note:__ This is in early development, and likely needs further work.
 --
     import "github.com/pdf/kodirpc"
 
+Package kodirpc is not for public consumption yet
 
 ## Usage
 
