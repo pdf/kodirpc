@@ -221,7 +221,7 @@ func (c *Client) process(res response) error {
 		c.RUnlock()
 
 		for _, handler := range handlers {
-			handler(params["data"])
+			go handler(params["data"])
 		}
 		return nil
 	}
