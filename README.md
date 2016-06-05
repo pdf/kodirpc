@@ -36,21 +36,21 @@ type Client struct {
 }
 ```
 
-Client is a TCP JSON-RPC client for Kodi
+Client is a TCP JSON-RPC client for Kodi.
 
 #### func  NewClient
 
 ```go
 func NewClient(address string, config *Config) (c *Client, err error)
 ```
-NewClient connects to the specified address and returns the resulting Client
+NewClient connects to the specified address and returns the resulting Client.
 
 #### func (*Client) Call
 
 ```go
 func (c *Client) Call(method string, params interface{}) (interface{}, error)
 ```
-Call an RPC method and return the result
+Call an RPC method and return the result.
 
 #### func (*Client) Close
 
@@ -58,21 +58,22 @@ Call an RPC method and return the result
 func (c *Client) Close() error
 ```
 Close the client connection, not further use of the Client is permitted after
-this method has been called
+this method has been called.
+
+#### func (*Client) Handle
+
+```go
+func (c *Client) Handle(method string, handler NotificationHandler)
+```
+Handle the notification method, using the specificed handler. The handler will
+be passed the data parameter from the incoming notification.
 
 #### func (*Client) Notify
 
 ```go
 func (c *Client) Notify(method string, params interface{}) error
 ```
-Notify sends the RPC request and does not wait for a response
-
-#### func (*Client) Register
-
-```go
-func (c *Client) Register(method string, fun NotificationFunc)
-```
-Register a notification handler for the specified method
+Notify sends the RPC request and does not wait for a response.
 
 #### type Config
 
@@ -105,14 +106,14 @@ type Error struct {
 }
 ```
 
-Error response
+Error response.
 
 #### func (*Error) Error
 
 ```go
 func (e *Error) Error() string
 ```
-Error satisfies the error interface
+Error satisfies the error interface.
 
 #### type LevelledLogger
 
@@ -135,10 +136,10 @@ type LevelledLogger interface {
 
 LevelledLogger represents a minimal levelled logger
 
-#### type NotificationFunc
+#### type NotificationHandler
 
 ```go
-type NotificationFunc func(data interface{})
+type NotificationHandler func(data interface{})
 ```
 
-NotificationFunc is a callback handler for notifications
+NotificationHandler is a callback handler for notifications.

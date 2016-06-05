@@ -10,17 +10,17 @@ import (
 	"time"
 )
 
-// NotificationFunc is a callback handler for notifications
-type NotificationFunc func(data interface{})
+// NotificationHandler is a callback handler for notifications.
+type NotificationHandler func(data interface{})
 
-// Error response
+// Error response.
 type Error struct {
 	Code    int         `json:"code"`
 	Message string      `json:"message"`
 	Data    interface{} `json:"data,omitempty"`
 }
 
-// Error satisfies the error interface
+// Error satisfies the error interface.
 func (e *Error) Error() string {
 	return fmt.Sprintf("%s [code: %d]", e.Message, e.Code)
 }
@@ -38,7 +38,7 @@ type response struct {
 	request
 }
 
-// Client is a TCP JSON-RPC client for Kodi
+// Client is a TCP JSON-RPC client for Kodi.
 type Client struct {
 	address string
 	config  *Config
@@ -47,7 +47,7 @@ type Client struct {
 	dec     *json.Decoder
 
 	pending  map[uint64]chan response
-	handlers map[string][]NotificationFunc
+	handlers map[string][]NotificationHandler
 	seq      uint64
 
 	quitChan chan struct{}
@@ -57,7 +57,7 @@ type Client struct {
 }
 
 // Close the client connection, not further use of the Client is permitted after
-// this method has been called
+// this method has been called.
 func (c *Client) Close() error {
 	c.Lock()
 	if c.closed {
@@ -77,23 +77,24 @@ func (c *Client) Close() error {
 	return err
 }
 
-// Register a notification handler for the specified method
-func (c *Client) Register(method string, fun NotificationFunc) {
+// Handle the notification method, using the specificed handler.  The handler
+// will be passed the data parameter from the incoming notification.
+func (c *Client) Handle(method string, handler NotificationHandler) {
 	c.Lock()
 	if _, ok := c.handlers[method]; !ok {
-		c.handlers[method] = make([]NotificationFunc, 0, 1)
+		c.handlers[method] = make([]NotificationHandler, 0, 1)
 	}
-	c.handlers[method] = append(c.handlers[method], fun)
+	c.handlers[method] = append(c.handlers[method], handler)
 	c.Unlock()
 }
 
-// Notify sends the RPC request and does not wait for a response
+// Notify sends the RPC request and does not wait for a response.
 func (c *Client) Notify(method string, params interface{}) error {
 	_, _, err := c.call(method, params, false)
 	return err
 }
 
-// Call an RPC method and return the result
+// Call an RPC method and return the result.
 func (c *Client) Call(method string, params interface{}) (interface{}, error) {
 	var res response
 	id, ch, err := c.call(method, params, true)
@@ -210,10 +211,10 @@ func (c *Client) process(res response) error {
 			return fmt.Errorf("Received notification with malformed params: %+v", res.Params)
 		}
 		c.RLock()
-		funcs, ok := c.handlers[*res.Method]
+		handlers, ok := c.handlers[*res.Method]
 		if ok {
-			for _, fun := range funcs {
-				fun(params["data"])
+			for _, handler := range handlers {
+				handler(params["data"])
 			}
 			return nil
 		}
@@ -258,7 +259,7 @@ func (c *Client) dial() (err error) {
 	}
 }
 
-// NewClient connects to the specified address and returns the resulting Client
+// NewClient connects to the specified address and returns the resulting Client.
 func NewClient(address string, config *Config) (c *Client, err error) {
 	if config == nil {
 		config = NewConfig()
@@ -267,7 +268,7 @@ func NewClient(address string, config *Config) (c *Client, err error) {
 		address:  address,
 		config:   config,
 		pending:  make(map[uint64]chan response),
-		handlers: make(map[string][]NotificationFunc),
+		handlers: make(map[string][]NotificationHandler),
 		quitChan: make(chan struct{}),
 	}
 	if err = c.dial(); err != nil {
