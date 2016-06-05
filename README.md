@@ -17,6 +17,8 @@ const (
 	// DefaultConnectTimeout is the default time re-/connection will be
 	// attempted before failure.
 	DefaultConnectTimeout = 5 * time.Minute
+	// DefaultReconnect determines whether the client reconnects by default.
+	DefaultReconnect = true
 )
 ```
 
@@ -84,6 +86,9 @@ type Config struct {
 	// ConnectTimeout is the time a re-/connection will be attempted before
 	// failure. A value of zero attempts indefinitely.
 	ConnectTimeout time.Duration
+	// Reconnect determines whether the client will attempt to reconnect on
+	// connection failure
+	Reconnect bool
 }
 ```
 
