@@ -174,9 +174,15 @@ func (c *Client) reader() {
 				c.RUnlock()
 				if _, ok := err.(net.Error); ok || err == io.EOF {
 					logger.Warnf("Disconnected: %v", err)
-					if err = c.dial(); err != nil {
+					if c.config.Reconnect {
+						if err = c.dial(); err != nil {
+							if err = c.Close(); err != nil {
+								logger.Errorf("Failed to clean up: %v", err)
+							}
+						}
+					} else {
 						if err = c.Close(); err != nil {
-							logger.Errorf("Failed to reconnect: %v", err)
+							logger.Errorf("Failed to clean up: %v", err)
 						}
 					}
 				} else {
@@ -242,13 +248,11 @@ func (c *Client) dial() (err error) {
 		logger.Infof("Connecting (%s)", c.address)
 		c.conn, err = net.Dial(`tcp`, c.address)
 		if err != nil {
-			logger.Debugf("Attempt: %f", attempt)
 			duration = time.Duration(math.Pow(float64(backoff/time.Millisecond), attempt)) * time.Millisecond
 			if duration < 0 {
 				panic(`ltz`)
 			}
-			logger.Debugf("Sleeping for %dms/%dms", duration/time.Millisecond, c.config.ConnectTimeout/time.Millisecond)
-			if c.config.ConnectTimeout != 0 && duration > c.config.ConnectTimeout {
+			if !c.config.Reconnect || (c.config.ConnectTimeout != 0 && duration > c.config.ConnectTimeout) {
 				return fmt.Errorf("Could not establish connection (%s): %v", c.address, err)
 			}
 			time.Sleep(duration)
