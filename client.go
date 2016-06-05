@@ -169,11 +169,14 @@ func (c *Client) process(res response) error {
 			return fmt.Errorf("Received notification with malformed params: %+v", res.Params)
 		}
 		c.RLock()
-		for _, fun := range c.handlers[*res.Method] {
-			fun(params["data"])
+		funcs, ok := c.handlers[*res.Method]
+		if ok {
+			for _, fun := range funcs {
+				fun(params["data"])
+			}
+			return nil
 		}
 		c.RUnlock()
-		return nil
 	}
 
 	return fmt.Errorf("Unhandled message: %+v", res)
