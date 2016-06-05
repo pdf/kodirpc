@@ -109,8 +109,8 @@ func init() {
 	SetLogger(&stubLogger{})
 }
 
-// SetLogger wraps the supplied logger with a logPrefixer to denote locally
-// generated logs
+// SetLogger enables logging for the library and wraps the supplied logger with
+// a logPrefixer to denote locally generated logs
 func SetLogger(l LevelledLogger) {
 	logger = &logPrefixer{log: l}
 }

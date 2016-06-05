@@ -25,8 +25,8 @@ const (
 ```go
 func SetLogger(l LevelledLogger)
 ```
-SetLogger wraps the supplied logger with a logPrefixer to denote locally
-generated logs
+SetLogger enables logging for the library and wraps the supplied logger with a
+logPrefixer to denote locally generated logs
 
 #### type Client
 
