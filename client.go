@@ -51,14 +51,29 @@ type Client struct {
 
 	quitChan chan struct{}
 
+	closed bool
 	sync.RWMutex
 }
 
 // Close the client connection, not further use of the Client is permitted after
 // this method has been called
 func (c *Client) Close() error {
+	c.Lock()
+	if c.closed {
+		return fmt.Errorf(`double-close`)
+	}
+	c.closed = true
 	close(c.quitChan)
-	return c.conn.Close()
+	for id := range c.pending {
+		close(c.pending[id])
+		delete(c.pending, id)
+	}
+	for method := range c.handlers {
+		delete(c.handlers, method)
+	}
+	err := c.conn.Close()
+	c.Unlock()
+	return err
 }
 
 // Register a notification handler for the specified method
@@ -110,14 +125,14 @@ func (c *Client) clearPending(id uint64) {
 
 func (c *Client) call(method string, params interface{}, withResponse bool) (uint64, chan response, error) {
 	var (
-		ch chan response
-		id uint64
+		ch  chan response
+		id  uint64
+		req = request{
+			Version: `2.0`,
+			Method:  &method,
+			Params:  params,
+		}
 	)
-	req := request{
-		Version: `2.0`,
-		Method:  &method,
-		Params:  params,
-	}
 	if withResponse {
 		ch = make(chan response)
 		c.Lock()
@@ -141,12 +156,17 @@ func (c *Client) reader() {
 			return
 		default:
 			res = response{}
-			if err = c.dec.Decode(&res); err != nil {
-				logger.Warnf("Failed decoding message: %+v", err)
-			} else {
-				if err = c.process(res); err != nil {
-					logger.Debugf("Failed processing message: %+v", err)
+			err = c.dec.Decode(&res)
+			if err != nil {
+				c.RLock()
+				if !c.closed {
+					logger.Warnf("Failed decoding message: %+v", err)
 				}
+				c.RUnlock()
+				continue
+			}
+			if err = c.process(res); err != nil {
+				logger.Debugf("Failed processing message: %+v", err)
 			}
 		}
 	}
@@ -156,11 +176,14 @@ func (c *Client) process(res response) error {
 	if res.ID != nil {
 		c.RLock()
 		ch, ok := c.pending[*res.ID]
-		c.RUnlock()
 		if !ok {
+			c.RUnlock()
 			return fmt.Errorf("Unknown request ID: %d", *res.ID)
 		}
+		// Stay locked around the channel write so that we don't write to the
+		// chan after close
 		ch <- res
+		c.RUnlock()
 		return nil
 	}
 	if res.Method != nil {
@@ -177,6 +200,8 @@ func (c *Client) process(res response) error {
 			return nil
 		}
 		c.RUnlock()
+
+		return fmt.Errorf("Unwanted notification (%s): %+v", *res.Method, res)
 	}
 
 	return fmt.Errorf("Unhandled message: %+v", res)
