@@ -53,42 +53,42 @@ type logPrefixer struct {
 	sync.Mutex
 }
 
-// Debugf handles debug level messages, prefixing them for golifx
+// Debugf handles debug level messages, prefixing them for kodirpc
 func (l *logPrefixer) Debugf(format string, args ...interface{}) {
 	l.Lock()
 	l.log.Debugf(l.prefix(format), args...)
 	l.Unlock()
 }
 
-// Infof handles info level messages, prefixing them for golifx
+// Infof handles info level messages, prefixing them for kodirpc
 func (l *logPrefixer) Infof(format string, args ...interface{}) {
 	l.Lock()
 	l.log.Infof(l.prefix(format), args...)
 	l.Unlock()
 }
 
-// Warnf handles warn level messages, prefixing them for golifx
+// Warnf handles warn level messages, prefixing them for kodirpc
 func (l *logPrefixer) Warnf(format string, args ...interface{}) {
 	l.Lock()
 	l.log.Warnf(l.prefix(format), args...)
 	l.Unlock()
 }
 
-// Errorf handles error level messages, prefixing them for golifx
+// Errorf handles error level messages, prefixing them for kodirpc
 func (l *logPrefixer) Errorf(format string, args ...interface{}) {
 	l.Lock()
 	l.log.Errorf(l.prefix(format), args...)
 	l.Unlock()
 }
 
-// Fatalf handles fatal level messages, prefixing them for golifx
+// Fatalf handles fatal level messages, prefixing them for kodirpc
 func (l *logPrefixer) Fatalf(format string, args ...interface{}) {
 	l.Lock()
 	l.log.Fatalf(l.prefix(format), args...)
 	l.Unlock()
 }
 
-// Panicf handles debug level messages, prefixing them for golifx
+// Panicf handles debug level messages, prefixing them for kodirpc
 func (l *logPrefixer) Panicf(format string, args ...interface{}) {
 	l.Lock()
 	l.log.Panicf(l.prefix(format), args...)
@@ -100,8 +100,8 @@ func (l *logPrefixer) prefix(format string) string {
 }
 
 var (
-	// Log holds the global logger used by golifx, can be set via SetLogger() in
-	// the golifx package
+	// logger holds the global logger used by kodirpc, can be set via
+	// SetLogger() in the kodirpc package
 	logger LevelledLogger
 )
 
@@ -109,7 +109,8 @@ func init() {
 	SetLogger(&stubLogger{})
 }
 
-// SetLogger wraps the supplied logger with a logPrefixer to denote golifx logs
+// SetLogger wraps the supplied logger with a logPrefixer to denote locally
+// generated logs
 func SetLogger(l LevelledLogger) {
 	logger = &logPrefixer{log: l}
 }
