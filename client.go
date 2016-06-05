@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"sync"
 	"time"
@@ -39,15 +40,15 @@ type response struct {
 
 // Client is a TCP JSON-RPC client for Kodi
 type Client struct {
-	conn io.ReadWriteCloser
-	enc  *json.Encoder
-	dec  *json.Decoder
+	address string
+	config  *Config
+	conn    io.ReadWriteCloser
+	enc     *json.Encoder
+	dec     *json.Decoder
 
 	pending  map[uint64]chan response
 	handlers map[string][]NotificationFunc
 	seq      uint64
-
-	timeout time.Duration
 
 	quitChan chan struct{}
 
@@ -60,7 +61,7 @@ type Client struct {
 func (c *Client) Close() error {
 	c.Lock()
 	if c.closed {
-		return fmt.Errorf(`double-close`)
+		return fmt.Errorf(`Double close`)
 	}
 	c.closed = true
 	close(c.quitChan)
@@ -99,11 +100,10 @@ func (c *Client) Call(method string, params interface{}) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	timeout := time.After(c.timeout)
 	select {
 	case res = <-ch:
 		c.clearPending(id)
-	case <-timeout:
+	case <-time.After(c.config.ReadTimeout):
 		c.clearPending(id)
 		return nil, fmt.Errorf(`Timed out`)
 	case <-c.quitChan:
@@ -137,12 +137,16 @@ func (c *Client) call(method string, params interface{}, withResponse bool) (uin
 		ch = make(chan response)
 		c.Lock()
 		id = c.seq
-		c.seq = c.seq + 1
+		c.seq++
 		c.pending[id] = ch
 		c.Unlock()
 		req.ID = &id
 	}
-	return id, ch, c.enc.Encode(req)
+	// Block during reconnect
+	c.RLock()
+	err := c.enc.Encode(req)
+	c.RUnlock()
+	return id, ch, err
 }
 
 func (c *Client) reader() {
@@ -156,17 +160,31 @@ func (c *Client) reader() {
 			return
 		default:
 			res = response{}
+			// Block during reconnect
+			c.RLock()
+			c.RUnlock()
 			err = c.dec.Decode(&res)
 			if err != nil {
 				c.RLock()
-				if !c.closed {
-					logger.Warnf("Failed decoding message: %+v", err)
+				if c.closed {
+					c.RUnlock()
+					return
 				}
 				c.RUnlock()
+				if _, ok := err.(net.Error); ok || err == io.EOF {
+					logger.Warnf("Disconnected: %v", err)
+					if err = c.dial(); err != nil {
+						if err = c.Close(); err != nil {
+							logger.Errorf("Failed to reconnect: %v", err)
+						}
+					}
+				} else {
+					logger.Warnf("Failed decoding message: %v", err)
+				}
 				continue
 			}
 			if err = c.process(res); err != nil {
-				logger.Debugf("Failed processing message: %+v", err)
+				logger.Debugf("Failed processing message: %v", err)
 			}
 		}
 	}
@@ -207,20 +225,54 @@ func (c *Client) process(res response) error {
 	return fmt.Errorf("Unhandled message: %+v", res)
 }
 
+func (c *Client) dial() (err error) {
+	var (
+		backoff          = 10 * time.Millisecond
+		attempt  float64 = 1
+		duration time.Duration
+	)
+	c.Lock()
+	defer c.Unlock()
+
+	for {
+		logger.Infof("Connecting (%s)", c.address)
+		c.conn, err = net.Dial(`tcp`, c.address)
+		if err != nil {
+			logger.Debugf("Attempt: %f", attempt)
+			duration = time.Duration(math.Pow(float64(backoff/time.Millisecond), attempt)) * time.Millisecond
+			if duration < 0 {
+				panic(`ltz`)
+			}
+			logger.Debugf("Sleeping for %dms/%dms", duration/time.Millisecond, c.config.ConnectTimeout/time.Millisecond)
+			if c.config.ConnectTimeout != 0 && duration > c.config.ConnectTimeout {
+				return fmt.Errorf("Could not establish connection (%s): %v", c.address, err)
+			}
+			time.Sleep(duration)
+			attempt++
+			continue
+		}
+		c.enc = json.NewEncoder(c.conn)
+		c.dec = json.NewDecoder(c.conn)
+		logger.Infof("Connected (%s)", c.address)
+		return nil
+	}
+}
+
 // NewClient connects to the specified address and returns the resulting Client
-func NewClient(address string, timeout time.Duration) (c *Client, err error) {
+func NewClient(address string, config *Config) (c *Client, err error) {
+	if config == nil {
+		config = NewConfig()
+	}
 	c = &Client{
+		address:  address,
+		config:   config,
 		pending:  make(map[uint64]chan response),
 		handlers: make(map[string][]NotificationFunc),
 		quitChan: make(chan struct{}),
-		timeout:  timeout,
 	}
-	c.conn, err = net.Dial(`tcp`, address)
-	if err != nil {
-		return nil, fmt.Errorf("Could not establish connection (%s): %v", address, err)
+	if err = c.dial(); err != nil {
+		return nil, err
 	}
-	c.enc = json.NewEncoder(c.conn)
-	c.dec = json.NewDecoder(c.conn)
 	go c.reader()
 
 	return c, nil

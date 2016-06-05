@@ -10,6 +10,16 @@ Package kodirpc is not for public consumption yet
 
 ## Usage
 
+```go
+const (
+	// DefaultReadTimeout is the default time a call will wait for a response.
+	DefaultReadTimeout = 5 * time.Second
+	// DefaultConnectTimeout is the default time re-/connection will be
+	// attempted before failure.
+	DefaultConnectTimeout = 5 * time.Minute
+)
+```
+
 #### func  SetLogger
 
 ```go
@@ -31,7 +41,7 @@ Client is a TCP JSON-RPC client for Kodi
 #### func  NewClient
 
 ```go
-func NewClient(address string, timeout time.Duration) (c *Client, err error)
+func NewClient(address string, config *Config) (c *Client, err error)
 ```
 NewClient connects to the specified address and returns the resulting Client
 
@@ -63,6 +73,27 @@ Notify sends the RPC request and does not wait for a response
 func (c *Client) Register(method string, fun NotificationFunc)
 ```
 Register a notification handler for the specified method
+
+#### type Config
+
+```go
+type Config struct {
+	// ReadTimeout is the time a call will wait for a response before failure.
+	ReadTimeout time.Duration
+	// ConnectTimeout is the time a re-/connection will be attempted before
+	// failure. A value of zero attempts indefinitely.
+	ConnectTimeout time.Duration
+}
+```
+
+Config represents the user-configurable parameters for the client
+
+#### func  NewConfig
+
+```go
+func NewConfig() (c *Config)
+```
+NewConfig returns a config instance with default values.
 
 #### type Error
 
