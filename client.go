@@ -256,6 +256,7 @@ func (c *Client) dial() (err error) {
 			if !c.config.Reconnect || (c.config.ConnectTimeout != 0 && duration > c.config.ConnectTimeout) {
 				return fmt.Errorf("Could not establish connection (%s): %v", c.address, err)
 			}
+			logger.Debugf("Sleeping for %dms/%dms", duration/time.Millisecond, c.config.ConnectTimeout/time.Millisecond)
 			time.Sleep(duration)
 			attempt++
 			continue
