@@ -184,7 +184,7 @@ func (c *Client) reader() {
 				continue
 			}
 			if err = c.process(res); err != nil {
-				logger.Debugf("Failed processing message: %v", err)
+				logger.Debugf(err.Error())
 			}
 		}
 	}
@@ -219,7 +219,7 @@ func (c *Client) process(res response) error {
 		}
 		c.RUnlock()
 
-		return fmt.Errorf("Unwanted notification (%s): %+v", *res.Method, res)
+		return fmt.Errorf("Unclaimed notification (%s): %+v", *res.Method, res)
 	}
 
 	return fmt.Errorf("Unhandled message: %+v", res)
