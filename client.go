@@ -244,13 +244,14 @@ func (c *Client) dial() (err error) {
 	c.Lock()
 	defer c.Unlock()
 
+	logger.Infof("Connecting (%s)", c.address)
 	for {
-		logger.Infof("Connecting (%s)", c.address)
 		c.conn, err = net.Dial(`tcp`, c.address)
 		if err != nil {
 			duration = time.Duration(math.Pow(float64(backoff/time.Millisecond), attempt)) * time.Millisecond
 			if duration < 0 {
-				panic(`ltz`)
+				// wrapped, so just trip our timeout
+				duration = c.config.ConnectTimeout + 1
 			}
 			if !c.config.Reconnect || (c.config.ConnectTimeout != 0 && duration > c.config.ConnectTimeout) {
 				return fmt.Errorf("Could not establish connection (%s): %v", c.address, err)
