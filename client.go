@@ -210,17 +210,20 @@ func (c *Client) process(res response) error {
 		if !ok {
 			return fmt.Errorf("Received notification with malformed params: %+v", res.Params)
 		}
+		var handlers []NotificationHandler
 		c.RLock()
-		handlers, ok := c.handlers[*res.Method]
-		if ok {
-			for _, handler := range handlers {
-				handler(params["data"])
-			}
-			return nil
+		if _, ok := c.handlers[*res.Method]; !ok {
+			c.RUnlock()
+			return fmt.Errorf("Unclaimed notification (%s): %+v", *res.Method, res)
 		}
+		handlers = make([]NotificationHandler, len(c.handlers[*res.Method]))
+		copy(handlers, c.handlers[*res.Method])
 		c.RUnlock()
 
-		return fmt.Errorf("Unclaimed notification (%s): %+v", *res.Method, res)
+		for _, handler := range handlers {
+			handler(params["data"])
+		}
+		return nil
 	}
 
 	return fmt.Errorf("Unhandled message: %+v", res)
