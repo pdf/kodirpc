@@ -144,7 +144,7 @@ LevelledLogger represents a minimal levelled logger
 #### type NotificationHandler
 
 ```go
-type NotificationHandler func(data interface{})
+type NotificationHandler func(method string, data interface{})
 ```
 
 NotificationHandler is a callback handler for notifications.

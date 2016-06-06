@@ -11,7 +11,7 @@ import (
 )
 
 // NotificationHandler is a callback handler for notifications.
-type NotificationHandler func(data interface{})
+type NotificationHandler func(method string, data interface{})
 
 // Error response.
 type Error struct {
@@ -227,7 +227,7 @@ func (c *Client) process(res response) error {
 		c.RUnlock()
 
 		for _, handler := range handlers {
-			go handler(params["data"])
+			go handler(*res.Method, params["data"])
 		}
 		return nil
 	}
