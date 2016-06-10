@@ -19,6 +19,8 @@ const (
 	DefaultConnectTimeout = 5 * time.Minute
 	// DefaultReconnect determines whether the client reconnects by default.
 	DefaultReconnect = true
+	// DefaultConnectBackoffScale is the default back-off scaling factor
+	DefaultConnectBackoffScale = 2
 )
 ```
 
@@ -89,6 +91,9 @@ type Config struct {
 	// Reconnect determines whether the client will attempt to reconnect on
 	// connection failure
 	Reconnect bool
+	// ConnectBackoffScale sets the scaling factor for back-off on failed
+	// connection attempts
+	ConnectBackoffScale int
 }
 ```
 

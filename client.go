@@ -248,7 +248,7 @@ func (c *Client) dial() (err error) {
 	for {
 		c.conn, err = net.Dial(`tcp`, c.address)
 		if err != nil {
-			duration = time.Duration(math.Pow(float64(backoff/time.Millisecond), attempt)) * time.Millisecond
+			duration = time.Duration(math.Pow(attempt, float64(c.config.ConnectBackoffScale))) * backoff
 			if duration < 0 {
 				// wrapped, so just trip our timeout
 				duration = c.config.ConnectTimeout + 1
