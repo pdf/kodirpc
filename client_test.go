@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TODO: Test reconnect, timeouts, close
@@ -138,17 +139,21 @@ func TestHandler(t *testing.T) {
 // client connects
 func testListener(t *testing.T, handler func(io.ReadWriter)) string {
 	assert := assert.New(t)
+	require := require.New(t)
 	address := fmt.Sprintf("127.0.0.1:%d", rand.Int31n(16384)+20000)
 	l, err := net.Listen(`tcp4`, address)
-	assert.Nil(err)
+	require.Nil(err)
 
 	go func() {
 		c, err := l.Accept()
-		assert.Nil(err)
+		require.Nil(err)
+		defer func() {
+			assert.Nil(c.Close())
+		}()
+
 		if handler != nil {
 			handler(c)
 		}
-		assert.Nil(c.Close())
 	}()
 
 	return address
