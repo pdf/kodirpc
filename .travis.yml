@@ -8,6 +8,3 @@ go:
 os:
   - linux
   - osx
-
-before_script:
-  - go get github.com/stretchr/testify/assert

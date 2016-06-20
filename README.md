@@ -1,6 +1,4 @@
-[![GoDoc](https://godoc.org/github.com/pdf/kodirpc?status.svg)](http://godoc.org/github.com/pdf/kodirpc) ![License-MIT](http://img.shields.io/badge/license-MIT-red.svg)
-
-__Note:__ This is in early development, and likely needs further work.
+[![Build Status](https://travis-ci.org/pdf/kodirpc.svg?branch=master)](https://travis-ci.org/pdf/kodirpc) [![GoDoc](https://godoc.org/github.com/pdf/kodirpc?status.svg)](http://godoc.org/github.com/pdf/kodirpc) ![License-MIT](http://img.shields.io/badge/license-MIT-red.svg)
 
 # kodirpc
 --
