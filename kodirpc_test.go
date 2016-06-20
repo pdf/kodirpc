@@ -101,7 +101,7 @@ func ExampleClient_Handle() {
 	}()
 
 	// Handle will execute the handler func every time a notification with the
-	// specified method is sent.
+	// specified method is sent by Kodi.
 	client.Handle(`VideoLibrary.OnUpdate`, func(method string, data interface{}) {
 		fmt.Println(data.(map[string]interface{}))
 	})
