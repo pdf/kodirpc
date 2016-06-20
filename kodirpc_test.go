@@ -16,7 +16,17 @@ func ExampleClient() {
 	}
 }
 
-func ExampleClient_logger() {
+func ExampleClient_config() {
+	config := kodirpc.NewConfig()
+	config.ReadTimeout = 2 * time.Second
+
+	client, err := kodirpc.NewClient(`127.0.0.1:9090`, config)
+	if err != nil || client == nil {
+		panic(err)
+	}
+}
+
+func ExampleSetLogger() {
 	// logrus is only used as an example, though loggers do need to satisfy the
 	// LevelledLogger interface.
 	logger := &logrus.Logger{
@@ -28,16 +38,6 @@ func ExampleClient_logger() {
 	kodirpc.SetLogger(logger)
 
 	client, err := kodirpc.NewClient(`127.0.0.1:9090`, kodirpc.NewConfig())
-	if err != nil || client == nil {
-		panic(err)
-	}
-}
-
-func ExampleClient_config() {
-	config := kodirpc.NewConfig()
-	config.ReadTimeout = 2 * time.Second
-
-	client, err := kodirpc.NewClient(`127.0.0.1:9090`, config)
 	if err != nil || client == nil {
 		panic(err)
 	}
