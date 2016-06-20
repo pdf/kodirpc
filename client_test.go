@@ -35,7 +35,8 @@ func TestNotify(t *testing.T) {
 	client, err := NewClient(address, NewConfig())
 	assert.Nil(err)
 
-	client.Notify(`Test.Notify`, map[string]string{`hello`: `world`})
+	err = client.Notify(`Test.Notify`, map[string]string{`hello`: `world`})
+	assert.Nil(err)
 	select {
 	case <-time.After(DefaultReadTimeout):
 		t.Error(`Timed out sending data`)
