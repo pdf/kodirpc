@@ -116,10 +116,6 @@ func TestHandler(t *testing.T) {
 		<-run
 		_, err := rw.Write(notification)
 		assert.Nil(err)
-		// This is ugly, probably need some internal changes to support better
-		// testing here...
-		time.Sleep(200 * time.Millisecond)
-		close(done)
 	})
 
 	client, err := NewClient(address, NewConfig())
@@ -127,6 +123,7 @@ func TestHandler(t *testing.T) {
 	client.Handle(`Test.Handler`, func(m string, d interface{}) {
 		assert.Equal(m, method)
 		assert.Equal(d, data)
+		close(done)
 	})
 	close(run)
 	select {
