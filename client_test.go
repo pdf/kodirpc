@@ -107,15 +107,18 @@ func TestCall(t *testing.T) {
 
 func TestHandler(t *testing.T) {
 	assert := assert.New(t)
-	notification := []byte(`{"jsonrpc":"2.0","method":"Test.Handler","params":{"hello":"world"}}`)
+	notification := []byte(`{"jsonrpc":"2.0","method":"Test.Handler","params":{"data":"hello"}}`)
 	method := `Test.Handler`
-	data := map[string]interface{}{`hello`: `world`}
+	data := `hello`
 	run := make(chan struct{})
 	done := make(chan struct{})
 	address := testListener(t, func(rw io.ReadWriter) {
 		<-run
 		_, err := rw.Write(notification)
 		assert.Nil(err)
+		// This is ugly, probably need some internal changes to support better
+		// testing here...
+		time.Sleep(200 * time.Millisecond)
 		close(done)
 	})
 
