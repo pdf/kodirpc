@@ -8,3 +8,8 @@ go:
 os:
   - linux
   - osx
+
+matrix:
+  allow_failures:
+    - os: osx
+  fast_finish: true
