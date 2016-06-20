@@ -6,7 +6,8 @@ __Note:__ This is in early development, and likely needs further work.
 --
     import "github.com/pdf/kodirpc"
 
-Package kodirpc is not for public consumption yet
+Package kodirpc is a JSON-RPC client for the TCP socket of the Kodi home theatre
+software.
 
 ## Usage
 

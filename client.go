@@ -10,6 +10,11 @@ import (
 	"time"
 )
 
+const (
+	// backoff base value
+	backoff = 10 * time.Millisecond
+)
+
 // NotificationHandler is a callback handler for notifications.
 type NotificationHandler func(method string, data interface{})
 
@@ -25,6 +30,7 @@ func (e *Error) Error() string {
 	return fmt.Sprintf("%s [code: %d]", e.Message, e.Code)
 }
 
+// request is used internally to encode outbound requests
 type request struct {
 	Version string      `json:"jsonrpc"`
 	Method  *string     `json:"method,omitempty"`
@@ -32,6 +38,7 @@ type request struct {
 	ID      *uint64     `json:"id,omitempty"`
 }
 
+// response is used internally to decode replies
 type response struct {
 	Result interface{} `json:"result,omitempty"`
 	Error  *Error      `json:"error,omitempty"`
@@ -117,6 +124,7 @@ func (c *Client) Call(method string, params interface{}) (interface{}, error) {
 	return res.Result, err
 }
 
+// clearPending removes a request from the pending response list
 func (c *Client) clearPending(id uint64) {
 	c.Lock()
 	close(c.pending[id])
@@ -124,6 +132,8 @@ func (c *Client) clearPending(id uint64) {
 	c.Unlock()
 }
 
+// call encodes and sends the specified method and params, optionally setting up
+// a pending response handler
 func (c *Client) call(method string, params interface{}, withResponse bool) (uint64, chan response, error) {
 	var (
 		ch  chan response
@@ -150,6 +160,7 @@ func (c *Client) call(method string, params interface{}, withResponse bool) (uin
 	return id, ch, err
 }
 
+// reader reads messages from the socket and delivers them for processing
 func (c *Client) reader() {
 	var (
 		res response
@@ -166,6 +177,7 @@ func (c *Client) reader() {
 			c.RUnlock()
 			err = c.dec.Decode(&res)
 			if err != nil {
+				// Exit the loop if we closed the connection
 				c.RLock()
 				if c.closed {
 					c.RUnlock()
@@ -174,70 +186,83 @@ func (c *Client) reader() {
 				c.RUnlock()
 				if _, ok := err.(net.Error); ok || err == io.EOF {
 					logger.Warnf("Disconnected: %v", err)
+					// On a network error, initiate reconnect logic if enabled,
+					// otherwise close this client
 					if c.config.Reconnect {
 						if err = c.dial(); err != nil {
 							if err = c.Close(); err != nil {
 								logger.Errorf("Failed to clean up: %v", err)
 							}
+							return
 						}
 					} else {
 						if err = c.Close(); err != nil {
 							logger.Errorf("Failed to clean up: %v", err)
 						}
+						return
 					}
 				} else {
+					// Unknown error, probably failed decoding for some reason
 					logger.Warnf("Failed decoding message: %v", err)
 				}
 				continue
 			}
-			if err = c.process(res); err != nil {
-				logger.Debugf(err.Error())
-			}
+			c.process(res)
 		}
 	}
 }
 
-func (c *Client) process(res response) error {
+// process routes messages to the appropriate handlers or pending responses
+func (c *Client) process(res response) {
 	if res.ID != nil {
 		c.RLock()
+		// Since we have a response ID, we should have a corresponding pending
+		// response
 		ch, ok := c.pending[*res.ID]
 		if !ok {
 			c.RUnlock()
-			return fmt.Errorf("Unknown request ID: %d", *res.ID)
+			logger.Warnf("Unknown request ID: %d", *res.ID)
+			return
 		}
 		// Stay locked around the channel write so that we don't write to the
 		// chan after close
 		ch <- res
 		c.RUnlock()
-		return nil
+		return
 	}
 	if res.Method != nil {
+		// Should be a notification since we did not get a response ID
 		params, ok := res.Params.(map[string]interface{})
 		if !ok {
-			return fmt.Errorf("Received notification with malformed params: %+v", res.Params)
+			logger.Warnf("Received notification with malformed params: %+v", res.Params)
+			return
 		}
-		var handlers []NotificationHandler
 		c.RLock()
 		if _, ok := c.handlers[*res.Method]; !ok {
 			c.RUnlock()
-			return fmt.Errorf("Unclaimed notification (%s): %+v", *res.Method, res)
+			logger.Debugf("Unclaimed notification (%s): %+v", *res.Method, res)
+			return
 		}
-		handlers = make([]NotificationHandler, len(c.handlers[*res.Method]))
+		// Copy the handlers here so that we can release the lock before
+		// processing
+		handlers := make([]NotificationHandler, len(c.handlers[*res.Method]))
 		copy(handlers, c.handlers[*res.Method])
 		c.RUnlock()
 
 		for _, handler := range handlers {
 			go handler(*res.Method, params["data"])
 		}
-		return nil
+		return
 	}
 
-	return fmt.Errorf("Unhandled message: %+v", res)
+	// Should not reach here
+	logger.Warnf("Unhandled message: %+v", res)
+	return
 }
 
+// dial initiates a connection, and retries with back-off if enabled
 func (c *Client) dial() (err error) {
 	var (
-		backoff          = 10 * time.Millisecond
 		attempt  float64 = 1
 		duration time.Duration
 	)
@@ -250,8 +275,11 @@ func (c *Client) dial() (err error) {
 		if err != nil {
 			duration = time.Duration(math.Pow(attempt, float64(c.config.ConnectBackoffScale))) * backoff
 			if duration < 0 {
-				// wrapped, so just trip our timeout
+				// wrapped, so trip our timeout
 				duration = c.config.ConnectTimeout + 1
+				if duration < 0 {
+					return fmt.Errorf("ConnectTimeout is set to max duration value, can never be exceeded!")
+				}
 			}
 			if !c.config.Reconnect || (c.config.ConnectTimeout != 0 && duration > c.config.ConnectTimeout) {
 				return fmt.Errorf("Could not establish connection (%s): %v", c.address, err)
